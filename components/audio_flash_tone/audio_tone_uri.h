@@ -6,6 +6,8 @@ extern const char* tone_uri[];
 typedef enum {
     TONE_TYPE_DINGDONG,
     TONE_TYPE_HAODE,
+    TONE_TYPE_RAIN,
+    TONE_TYPE_TIMER,
     TONE_TYPE_MAX,
 } tone_type_t;
 

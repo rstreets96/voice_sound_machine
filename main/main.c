@@ -270,7 +270,7 @@ static esp_err_t rec_engine_cb(audio_rec_evt_t *event, void *user_data)
         ESP_LOGI(TAG, "rec_engine_cb - AUDIO_REC_COMMAND_DECT");
         ESP_LOGW(TAG, "command %d, phrase_id %d, prob %f, str: %s"
             , event->type, mn_result->phrase_id, mn_result->prob, mn_result->str);
-        esp_audio_sync_play(player, tone_uri[TONE_TYPE_DINGDONG], 0);
+        esp_audio_sync_play(player, tone_uri[TONE_TYPE_TIMER], 0);
     } else {
         ESP_LOGE(TAG, "Unkown event");
     }
