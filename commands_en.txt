@@ -1,0 +1,20 @@
+1,one minute timer,WcN MgNcT TiMk
+2,two minute timer,To MgNcT TiMk
+3,three minute timer,vRm MgNcT TiMk
+4,four minute timer,FeR MgNcT TiMk
+5,five minute timer,FiV MgNcT TiMk
+6,six minute timer,SgKS MgNcT TiMk
+7,seven minute timer,SfVcN MgNcT TiMk
+8,eight minute timer,dT MgNcT TiMk
+9,nine minute timer,NiN MgNcT TiMk
+10,ten minute timer,TfN MgNcT TiMk
+11,eleven minute timer,gLfVcN MgNcT TiMk
+12,twelve minute timer,TWfLV MgNcT TiMk
+13,thirteen minute timer,vkTmN MgNcT TiMk
+14,fourteen minute timer,FeRTmN MgNcT TiMk
+15,fifteen minute timer,FgFTmN MgNcT TiMk
+20,twenty minute timer,TWfNTm MgNcT TiMk
+30,thirty minute timer,vkDm MgNcT TiMk
+1000,rain,RdN
+1000,white noise,WiT NuZ
+1000,good night,GwD NiT
