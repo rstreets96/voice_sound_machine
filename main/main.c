@@ -55,6 +55,8 @@
 
 #include "model_path.h"
 
+#include "audio_manager.h"
+
 #define NO_ENCODER  (0)
 #define ENC_2_AMRNB (1)
 #define ENC_2_AMRWB (2)
@@ -100,15 +102,17 @@ static audio_element_handle_t raw_read      = NULL;
 static QueueHandle_t          rec_q         = NULL;
 static bool                   voice_reading = false;
 
-static void esp_audio_evt_cb(esp_audio_state_t *audio_state, void *ctx)
-{
-    (void)ctx;
-    ESP_LOGI(TAG, "audio_state status:%u, error message:%u, media source:%u", audio_state->status, audio_state->err_msg, audio_state->media_src);
-    if(audio_state->status == AUDIO_STATUS_FINISHED)
-    {
-        esp_audio_play(player, AUDIO_CODEC_TYPE_DECODER, tone_uri[TONE_TYPE_TIMER], 0);
-    }
-}
+static audio_manager_t*       audio_manager = NULL;
+
+// static void esp_audio_evt_cb(esp_audio_state_t *audio_state, void *ctx)
+// {
+//     (void)ctx;
+//     ESP_LOGI(TAG, "audio_state status:%u, error message:%u, media source:%u", audio_state->status, audio_state->err_msg, audio_state->media_src);
+//     if(audio_state->status == AUDIO_STATUS_FINISHED)
+//     {
+//         esp_audio_play(player, AUDIO_CODEC_TYPE_DECODER, tone_uri[TONE_TYPE_TIMER], 0);
+//     }
+// }
 
 static esp_audio_handle_t setup_player()
 {
@@ -120,7 +124,7 @@ static esp_audio_handle_t setup_player()
     cfg.vol_get = (audio_volume_get)audio_hal_get_volume;
     cfg.resample_rate = 48000;
     cfg.prefer_type = ESP_AUDIO_PREFER_MEM;
-    cfg.cb_func = &esp_audio_evt_cb;
+    // cfg.cb_func = &esp_audio_evt_cb;
 
     player = esp_audio_create(&cfg);
     audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_BOTH, AUDIO_HAL_CTRL_START);
@@ -248,7 +252,7 @@ static esp_err_t rec_engine_cb(audio_rec_evt_t *event, void *user_data)
 
         ESP_LOGI(TAG, "rec_engine_cb - REC_EVENT_WAKEUP_START");
         ESP_LOGI(TAG, "wakeup: vol %f, mod idx %d, word idx %d", wakeup_result->data_volume, wakeup_result->wakenet_model_index, wakeup_result->wake_word_index);
-        esp_audio_sync_play(player, tone_uri[TONE_TYPE_DINGDONG], 0);
+        esp_audio_sync_play(player, tone_uri[TONE_TYPE_DINGDONG], 0);   //TODO Move to Audio Manager
         if (voice_reading) {
             int msg = REC_CANCEL;
             if (xQueueSend(rec_q, &msg, 0) != pdPASS) {
@@ -281,7 +285,13 @@ static esp_err_t rec_engine_cb(audio_rec_evt_t *event, void *user_data)
         ESP_LOGI(TAG, "rec_engine_cb - AUDIO_REC_COMMAND_DECT");
         ESP_LOGW(TAG, "command %d, phrase_id %d, prob %f, str: %s"
             , event->type, mn_result->phrase_id, mn_result->prob, mn_result->str);
-        esp_audio_play(player, AUDIO_CODEC_TYPE_DECODER, tone_uri[TONE_TYPE_RAIN], 0);
+        
+        switch(mn_result->phrase_id)
+        {
+            case 1000:
+                cmd_start_rain(audio_manager, 50);
+                break;
+        }
     } else {
         ESP_LOGE(TAG, "Unkown event");
     }
@@ -474,4 +484,6 @@ void app_main(void)
 
     rec_q = xQueueCreate(3, sizeof(int));
     audio_thread_create(NULL, "read_task", voice_read_task, NULL, 4 * 1024, 5, true, 0);
+
+    audio_manager = audio_manager_task_init(player);
 }

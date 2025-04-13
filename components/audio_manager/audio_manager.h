@@ -3,9 +3,12 @@
 #include "freertos/task.h"
 
 #define AUDIO_MSG_QUEUE_SIZE                10
-#define AUDIO_CHECK_POS_PERIOD_MS           50      
+#define AUDIO_CHECK_POS_PERIOD_MS           20      
 #define AUDIO_MANAGER_TASK_STACK_SIZE       4096
 #define AUDIO_MANAGER_TASK_PRIORITY         2
+#define AUDIO_LOOP_HEADROOM_MS              30
+
+#define US_PER_MS                            1000
 
 typedef enum 
 {
@@ -35,11 +38,14 @@ typedef struct
 
     TimerHandle_t check_pos_timer;
     uint8_t pos_timer_period_ms;
+    bool loop_enabled;
+    uint32_t loop_headroom_ms;
 
     QueueHandle_t cmd_queue;
     audio_msg_ring_buff_t cmd_ring_buff;
-    bool loop_enabled;
+
+    esp_audio_handle_t player;
 }audio_manager_t;
 
-
-void audio_manager_task_init(void);
+bool cmd_start_rain(audio_manager_t * manger, uint8_t delay_ms);
+audio_manager_t * audio_manager_task_init(esp_audio_handle_t audio_player);
