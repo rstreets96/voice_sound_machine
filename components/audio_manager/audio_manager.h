@@ -3,10 +3,10 @@
 #include "freertos/task.h"
 
 #define AUDIO_MSG_QUEUE_SIZE                10
-#define AUDIO_CHECK_POS_PERIOD_MS           20      
+#define AUDIO_CHECK_POS_PERIOD_MS           30      
 #define AUDIO_MANAGER_TASK_STACK_SIZE       4096
 #define AUDIO_MANAGER_TASK_PRIORITY         2
-#define AUDIO_LOOP_HEADROOM_MS              30
+#define AUDIO_LOOP_HEADROOM_MS              200
 
 #define US_PER_MS                            1000
 

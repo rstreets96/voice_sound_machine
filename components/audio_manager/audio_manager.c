@@ -33,8 +33,10 @@ bool cmd_start_rain(audio_manager_t * manager, uint8_t delay_ms)
     audio_msg_t *msg = ring_buff_get_msg(manager, &delay_ms, false);
     if(msg != NULL)
     {
+        // ESP_LOGI(TAG, "%u", msq->type);
         msg->type = AUDIO_CMD_START_RAIN;
-        if(xQueueSend(manager->cmd_queue, &msg, pdMS_TO_TICKS(delay_ms)) != pdPASS)
+        // ESP_LOGI(TAG, "%u", msq->type);
+        if(xQueueSend(manager->cmd_queue, msg, pdMS_TO_TICKS(delay_ms)) != pdPASS)
         {
             ESP_LOGE(TAG, "Check Position Timer failed to send msg to queue.");
             return false;
@@ -51,11 +53,11 @@ static audio_msg_t * ring_buff_get_msg(audio_manager_t *mngr, uint8_t *wait_ms, 
     bool open_space;
     if(from_isr)
     {
-        open_space = (uxQueueMessagesWaitingFromISR(mngr->cmd_queue) >= mngr->cmd_ring_buff.size);
+        open_space = (uxQueueMessagesWaitingFromISR(mngr->cmd_queue) < mngr->cmd_ring_buff.size);
     }
     else
     {
-        open_space = (uxQueueMessagesWaiting(mngr->cmd_queue) >= mngr->cmd_ring_buff.size);
+        open_space = (uxQueueMessagesWaiting(mngr->cmd_queue) < mngr->cmd_ring_buff.size);
     }
     if(open_space)
     {
@@ -98,14 +100,14 @@ static void audio_pos_timer_cb(TimerHandle_t timer)
     if(msg != NULL)
     {
         msg->type = AUDIO_CMD_CHECK_POS;
-        if(xQueueSend(manager->cmd_queue, &msg, 0) != pdPASS)
+        if(xQueueSend(manager->cmd_queue, msg, 0) != pdPASS)
         {
-            ESP_LOGE(TAG, "Check Position Timer failed to send msg to queue.");
+            ESP_LOGE(TAG, "Timer queue send fail");
         }
     }
     else
     {
-        ESP_LOGE(TAG, "Check Position Timer failed to get msg from ring buffer.");
+        ESP_LOGE(TAG, "Timer ring buffer fail");
     }
 }
 
@@ -121,7 +123,7 @@ static void audio_manager_task(void *parameter)
         audio_msg_t msg = {};
         if(xQueueReceive(audio_manager->cmd_queue, &msg, portMAX_DELAY) == pdPASS)
         {
-            ESP_LOGI(TAG, "Received audio command: %u", msg.type);
+            ESP_LOGD(TAG, "Received audio command: %u", msg.type);
             switch(msg.type)
             {
                 case AUDIO_CMD_TIMER_DONE:
@@ -143,13 +145,15 @@ static void audio_manager_task(void *parameter)
                 case AUDIO_CMD_CHECK_POS:
                     if(audio_manager->loop_enabled)
                     {
-                        int tot_duration_us = 0;
-                        int curr_duration_us = 0;
-                        esp_audio_duration_get(audio_manager->player, &tot_duration_us);
-                        esp_audio_time_get(audio_manager->player, &curr_duration_us);
-                        if(tot_duration_us - audio_manager->loop_headroom_ms * US_PER_MS <= curr_duration_us)
+                        int tot_duration_ms = 0;
+                        int curr_duration_ms = 0;
+                        esp_audio_duration_get(audio_manager->player, &tot_duration_ms);
+                        esp_audio_time_get(audio_manager->player, &curr_duration_ms);
+                        ESP_LOGI(TAG, "Curr Duration: %u, Total Duration: %u", curr_duration_ms, tot_duration_ms);
+                        if(tot_duration_ms - audio_manager->loop_headroom_ms <= curr_duration_ms)
                         {
                             esp_audio_seek(audio_manager->player, 0);
+                            ESP_LOGI(TAG, "Looping Audio!");
                         }
 
                     }
