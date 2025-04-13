@@ -29,6 +29,7 @@ static audio_msg_t *ring_buff_get_msg(audio_manager_t *mngr, uint8_t *wait_ms, b
 //******************************************************************
 bool cmd_start_rain(audio_manager_t * manager, uint8_t delay_ms)
 {
+    ESP_LOGI(TAG, "Sending Rain Command!");
     audio_msg_t *msg = ring_buff_get_msg(manager, &delay_ms, false);
     if(msg != NULL)
     {
@@ -60,6 +61,7 @@ static audio_msg_t * ring_buff_get_msg(audio_manager_t *mngr, uint8_t *wait_ms, 
     {
         mngr->cmd_ring_buff.head_idx += 1;
         mngr->cmd_ring_buff.head_idx %= mngr->cmd_ring_buff.size;
+        mngr->cmd_ring_buff.msg_array[mngr->cmd_ring_buff.head_idx].type = 0;
         return &mngr->cmd_ring_buff.msg_array[mngr->cmd_ring_buff.head_idx];
     }
     else
@@ -76,6 +78,7 @@ static audio_msg_t * ring_buff_get_msg(audio_manager_t *mngr, uint8_t *wait_ms, 
                 {
                     mngr->cmd_ring_buff.head_idx += 1;
                     mngr->cmd_ring_buff.head_idx %= mngr->cmd_ring_buff.size;
+                    mngr->cmd_ring_buff.msg_array[mngr->cmd_ring_buff.head_idx].type = 0;
                     return &mngr->cmd_ring_buff.msg_array[mngr->cmd_ring_buff.head_idx];
                 }
                 vTaskDelay(pdMS_TO_TICKS(1));
@@ -115,7 +118,7 @@ static void audio_manager_task(void *parameter)
 
     while(true)
     {
-        audio_msg_t msg;
+        audio_msg_t msg = {};
         if(xQueueReceive(audio_manager->cmd_queue, &msg, portMAX_DELAY) == pdPASS)
         {
             ESP_LOGI(TAG, "Received audio command: %u", msg.type);
