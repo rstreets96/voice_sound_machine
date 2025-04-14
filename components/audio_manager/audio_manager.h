@@ -17,12 +17,14 @@ typedef enum
     AUDIO_CMD_EN_LOOP,
     AUDIO_CMD_STOP_SOUNDS,
     AUDIO_CMD_CHECK_POS,
+    AUDIO_CMD_WAKE_SOUND,
+    AUDIO_CMD_CONFIRM_SOUND,
 }audio_cmd_e;
 
 typedef struct
 {
     audio_cmd_e type;
-
+    TimerHandle_t timer;
 }audio_msg_t;
 
 typedef struct
@@ -47,5 +49,9 @@ typedef struct
     esp_audio_handle_t player;
 }audio_manager_t;
 
+bool cmd_wake_sound(audio_manager_t * manager, uint8_t delay_ms);
+bool cmd_confirm_sound(audio_manager_t * manager, uint8_t delay_ms);
 bool cmd_start_rain(audio_manager_t * manger, uint8_t delay_ms);
+bool start_timer(audio_manager_t * manager, uint32_t timer_val_s, uint8_t queue_delay_ms);
+
 audio_manager_t * audio_manager_task_init(esp_audio_handle_t audio_player);

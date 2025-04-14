@@ -27,23 +27,82 @@ static audio_msg_t *ring_buff_get_msg(audio_manager_t *mngr, uint8_t *wait_ms, b
 
 // Commands for other tasks to interact
 //******************************************************************
-bool cmd_start_rain(audio_manager_t * manager, uint8_t delay_ms)
+bool cmd_wake_sound(audio_manager_t * manager, uint8_t delay_ms)
 {
-    ESP_LOGI(TAG, "Sending Rain Command!");
+    ESP_LOGD(TAG, "Sending Wake Sound Command!");
     audio_msg_t *msg = ring_buff_get_msg(manager, &delay_ms, false);
     if(msg != NULL)
     {
-        // ESP_LOGI(TAG, "%u", msq->type);
-        msg->type = AUDIO_CMD_START_RAIN;
-        // ESP_LOGI(TAG, "%u", msq->type);
+        msg->type = AUDIO_CMD_WAKE_SOUND;
         if(xQueueSend(manager->cmd_queue, msg, pdMS_TO_TICKS(delay_ms)) != pdPASS)
         {
-            ESP_LOGE(TAG, "Check Position Timer failed to send msg to queue.");
+            ESP_LOGE(TAG, "Wake Sound CMD: Queue send failed");
             return false;
         }
         return true;
     }
     return false;
+}
+
+bool cmd_confirm_sound(audio_manager_t * manager, uint8_t delay_ms)
+{
+    ESP_LOGD(TAG, "Sending Confirm Sound Command!");
+    audio_msg_t *msg = ring_buff_get_msg(manager, &delay_ms, false);
+    if(msg != NULL)
+    {
+        msg->type = AUDIO_CMD_CONFIRM_SOUND;
+        if(xQueueSend(manager->cmd_queue, msg, pdMS_TO_TICKS(delay_ms)) != pdPASS)
+        {
+            ESP_LOGE(TAG, "Confirm Sound CMD: Queue send failed");
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+bool cmd_start_rain(audio_manager_t * manager, uint8_t delay_ms)
+{
+    ESP_LOGD(TAG, "Sending Rain Command!");
+    audio_msg_t *msg = ring_buff_get_msg(manager, &delay_ms, false);
+    if(msg != NULL)
+    {
+        msg->type = AUDIO_CMD_START_RAIN;
+        if(xQueueSend(manager->cmd_queue, msg, pdMS_TO_TICKS(delay_ms)) != pdPASS)
+        {
+            ESP_LOGE(TAG, "Rain Sound CMD: Queue send failed");
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+static void timers_done_cb(TimerHandle_t timer)
+{
+    audio_manager_t *manager = (audio_manager_t *)pvTimerGetTimerID(timer);
+    uint8_t delay_ms = 0;
+    audio_msg_t *msg = ring_buff_get_msg(manager, &delay_ms, false);
+    if(msg != NULL)
+    {
+        msg->type = AUDIO_CMD_TIMER_DONE;
+        if(xQueueSend(manager->cmd_queue, msg, 0) != pdPASS)
+        {
+            ESP_LOGE(TAG, "Timer queue send fail");
+        }
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Timer ring buffer fail");
+    }
+
+}
+
+bool start_timer(audio_manager_t * manager, uint32_t timer_val_s, uint8_t queue_delay_ms)
+{
+    ESP_LOGI(TAG, "Starting timer for %u seconds.", timer_val_s);
+    xTimerCreate("New Timer", pdMS_TO_TICKS(timer_val_s * 1000), pdFALSE, (void *)manager, timers_done_cb);  //TODO: Un-magic the number
+    return cmd_confirm_sound(manager, queue_delay_ms);
 }
 
 // Static functions as helpers
@@ -123,20 +182,28 @@ static void audio_manager_task(void *parameter)
         audio_msg_t msg = {};
         if(xQueueReceive(audio_manager->cmd_queue, &msg, portMAX_DELAY) == pdPASS)
         {
+            esp_audio_state_t state;
             ESP_LOGD(TAG, "Received audio command: %u", msg.type);
             switch(msg.type)
             {
                 case AUDIO_CMD_TIMER_DONE:
+                    esp_audio_state_get(audio_manager->player, &state);
+                    if(state.status == AUDIO_STATUS_RUNNING)
+                    {
+                        esp_audio_stop(audio_manager->player, TERMINATION_TYPE_NOW);
+                    }
+                    esp_audio_play(audio_manager->player, AUDIO_CODEC_TYPE_DECODER, tone_uri[TONE_TYPE_TIMER], 0);
+                    xTimerDelete(msg.timer, pdMS_TO_TICKS(50)); //TODO: Un-magic number
+                    xTimerStart(audio_manager->check_pos_timer, pdMS_TO_TICKS(100)); //TODO: Check for loop enabled?
                     break;
                 case AUDIO_CMD_START_RAIN:
-                    esp_audio_state_t state;
                     esp_audio_state_get(audio_manager->player, &state);
                     if(state.status == AUDIO_STATUS_RUNNING)
                     {
                         esp_audio_stop(audio_manager->player, TERMINATION_TYPE_NOW);
                     }
                     esp_audio_play(audio_manager->player, AUDIO_CODEC_TYPE_DECODER, tone_uri[TONE_TYPE_RAIN], 0);
-                    xTimerStart(audio_manager->check_pos_timer, pdMS_TO_TICKS(100));
+                    xTimerStart(audio_manager->check_pos_timer, pdMS_TO_TICKS(100)); //TODO: Check for loop enabled?
                     break;
                 case AUDIO_CMD_EN_LOOP:
                     break;
@@ -157,6 +224,24 @@ static void audio_manager_task(void *parameter)
                         }
 
                     }
+                    break;
+                case AUDIO_CMD_WAKE_SOUND:
+                    esp_audio_state_get(audio_manager->player, &state);
+                    if(state.status == AUDIO_STATUS_RUNNING)
+                    {
+                        xTimerStop(audio_manager->check_pos_timer, pdMS_TO_TICKS(100));     //TODO: Is there something I should check here?
+                        esp_audio_stop(audio_manager->player, TERMINATION_TYPE_NOW);
+                    }
+                    esp_audio_sync_play(audio_manager->player, tone_uri[TONE_TYPE_DINGDONG], 0);
+                    break;
+                case AUDIO_CMD_CONFIRM_SOUND:
+                    esp_audio_state_get(audio_manager->player, &state);
+                    if(state.status == AUDIO_STATUS_RUNNING)
+                    {
+                        xTimerStop(audio_manager->check_pos_timer, pdMS_TO_TICKS(100));     //TODO: Is there something I should check here?
+                        esp_audio_stop(audio_manager->player, TERMINATION_TYPE_NOW);
+                    }
+                    esp_audio_sync_play(audio_manager->player, tone_uri[TONE_TYPE_DINGDONG], 0);
                     break;
             }
 

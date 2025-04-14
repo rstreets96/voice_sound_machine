@@ -252,7 +252,7 @@ static esp_err_t rec_engine_cb(audio_rec_evt_t *event, void *user_data)
 
         ESP_LOGI(TAG, "rec_engine_cb - REC_EVENT_WAKEUP_START");
         ESP_LOGI(TAG, "wakeup: vol %f, mod idx %d, word idx %d", wakeup_result->data_volume, wakeup_result->wakenet_model_index, wakeup_result->wake_word_index);
-        esp_audio_sync_play(player, tone_uri[TONE_TYPE_DINGDONG], 0);   //TODO Move to Audio Manager
+        cmd_wake_sound(audio_manager, 50);
         if (voice_reading) {
             int msg = REC_CANCEL;
             if (xQueueSend(rec_q, &msg, 0) != pdPASS) {
@@ -288,6 +288,25 @@ static esp_err_t rec_engine_cb(audio_rec_evt_t *event, void *user_data)
         
         switch(mn_result->phrase_id)
         {
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+            case 15:
+            case 20:
+            case 30:
+                start_timer(audio_manager, mn_result->phrase_id * 60, 50);
+                break;
             case 1000:
                 cmd_start_rain(audio_manager, 50);
                 break;
